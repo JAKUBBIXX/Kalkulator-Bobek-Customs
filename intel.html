@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Kalkulator Bobek Customs — Cyan Edition (v2)</title>
+<meta name="description" content="Kalkulator dla pracowników Bobka" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070506;
+    --card:#11090a;
+    --muted:#a7a0a2;
+    --accent:#00d4ff;       /* primary cyan */
+    --accent-2:#0099cc;     /* stronger cyan */
+    --accent-glow: rgba(0,212,255,0.14);
+    --success:#22c55e;
+    --danger:#ef4444;
+    --glass: rgba(255,255,255,0.02);
+    --radius:12px;
+    --gap:14px;
+    --shadow: 0 10px 40px rgba(2,6,23,0.7);
+    --mono: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    --tab-active: rgba(0,212,255,0.10);
+    --tab-border: rgba(255,255,255,0.03);
+    --small: 0.86rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:var(--mono);
+    background:linear-gradient(180deg,var(--bg) 0%, #040203 100%);
+    color:#f5eaea;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    overflow:hidden;
+  }
+
+  /* background canvases */
+  #bgCanvas, #fxCanvas {
+    position:fixed;
+    inset:0;
+    z-index:0;
+    pointer-events:none;
+    will-change:transform;
+  }
+
+  .app{
+    width:min(980px, 96vw);
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:calc(var(--radius) + 6px);
+    padding:18px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    position:relative;
+    z-index:3;
+  }
+
+  header{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  .brand { display:flex; gap:12px; align-items:center; }
+  .logo {
+    width:42px; height:42px;
+    display:inline-grid; place-items:center;
+    border-radius:10px;
+    background:linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,153,204,0.06));
+    border:1px solid rgba(255,255,255,0.03);
+    flex-shrink:0;
+  }
+  .logo svg{width:24px;height:24px; fill:var(--accent)}
+  h1{ margin:0; font-weight:700; font-size:1.02rem; letter-spacing:-0.02em; }
+  p.lead{ margin:0; color:var(--muted); font-size:0.84rem; }
+
+  /* controls panel (search + toggles) */
+  .controls-bar{
+    margin-left:auto;
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .search{
+    background:rgba(255,255,255,0.02);
+    border:1px solid rgba(255,255,255,0.03);
+    padding:8px 10px;
+    border-radius:10px;
+    color:var(--muted);
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .search input{
+    background:transparent; border:0; color:inherit; outline:none; width:160px;
+  }
+  .toggle{
+    background:transparent;
+    border:1px solid rgba(255,255,255,0.03);
+    padding:8px 10px;
+    border-radius:10px;
+    color:var(--muted);
+    cursor:pointer;
+    font-weight:600;
+  }
+  .small-label{ font-size:0.78rem; color:var(--muted); }
+
+  .grid{ display:grid; grid-template-columns: 1fr 340px; gap:16px; align-items:start; margin-top:8px; }
+  @media (max-width:920px){ .grid{grid-template-columns:1fr} }
+
+  .tabs{ display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap; z-index:3; }
+  .tab{
+    padding:8px 12px;
+    border-radius:10px;
+    background:transparent;
+    border:1px solid var(--tab-border);
+    color:var(--muted);
+    font-weight:600;
+    font-size:var(--small);
+    cursor:pointer;
+    display:inline-flex;
+    gap:8px;
+    align-items:center;
+    transition:background .18s, transform .12s, color .18s, box-shadow .18s;
+  }
+  .tab:hover{ transform:translateY(-3px) }
+  .tab.active{
+    background:var(--tab-active);
+    color:var(--accent);
+    box-shadow:0 8px 24px rgba(0,212,255,0.06);
+    border-color: rgba(0,212,255,0.14);
+  }
+
+  .list{ display:flex; flex-direction:column; gap:10px; max-height:62vh; overflow:auto; padding-right:6px; }
+  .cat-block{ margin-bottom:10px; border-radius:10px; padding:6px; background:linear-gradient(180deg, rgba(255,255,255,0.004), rgba(255,255,255,0.002)); border:1px solid rgba(255,255,255,0.02); }
+  .cat-header{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 10px; border-radius:8px; cursor:pointer; user-select:none; }
+  .cat-title{ font-weight:700; color:var(--muted); display:flex; gap:10px; align-items:center; }
+  .cat-title strong{ color:var(--accent); font-weight:800 }
+  .cat-controls{ display:flex; gap:8px; align-items:center; }
+  .cat-toggle{ background:transparent; border:1px solid rgba(255,255,255,0.02); color:var(--muted); padding:6px 8px; border-radius:8px; cursor:pointer; }
+
+  .service {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 14px; border-radius:12px;
+    background:var(--glass); border:1px solid rgba(255,255,255,0.03);
+    transition:transform .12s ease, box-shadow .12s ease, background .12s, opacity .18s;
+    will-change:transform, opacity;
+    transform: translateY(0); opacity:1;
+  }
+  .service.hidden { opacity:0; transform:translateY(4px); pointer-events:none; height:0; margin:0; padding:0; }
+
+  .service:focus-within, .service:hover{
+    transform:translateY(-4px);
+    background:linear-gradient(90deg, rgba(0,212,255,0.02), rgba(0,153,204,0.01));
+    box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+  }
+
+  .meta{ display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .title{ font-weight:600; font-size:0.98rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .price{ font-size:0.86rem; color:var(--muted) }
+
+  .controls{ display:flex; align-items:center; gap:8px; }
+  .btn{
+    --btn-h:36px; height:var(--btn-h); min-width:44px;
+    padding:6px 10px; border-radius:10px; border:0; cursor:pointer;
+    display:inline-grid; place-items:center; background:transparent; color:var(--accent);
+    font-weight:700; font-size:1.02rem; transition:transform .08s ease, box-shadow .12s;
+    box-shadow:0 3px 10px rgba(2,6,23,0.45);
+  }
+  .btn:active{ transform:scale(.96) }
+  .btn.add{ background:linear-gradient(180deg,var(--accent) 0%, var(--accent-2) 100%); color:#111; box-shadow: 0 6px 20px var(--accent-glow); }
+  .btn.remove{ background:transparent; color:var(--danger); border:1px solid rgba(239,68,68,0.12); }
+
+  .count{ min-width:44px; text-align:center; font-weight:700; color:#fff; background:rgba(255,255,255,0.02); padding:6px 10px; border-radius:10px; transition:transform .14s cubic-bezier(.2,.9,.2,1); }
+
+  .summary{
+    background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));
+    padding:18px; border-radius:12px; border:1px solid rgba(255,255,255,0.03);
+    position:sticky; top:20px; display:flex; flex-direction:column; gap:12px; align-items:stretch;
+  }
+  .totalLabel{ font-size:0.9rem; color:var(--muted); margin-bottom:6px }
+  .totalValue{ font-weight:800; font-size:2.05rem; color:var(--accent); display:flex; align-items:baseline; gap:8px; will-change:transform, box-shadow; }
+  .totalValue.glow{ box-shadow: 0 10px 48px rgba(0,212,255,0.25); transform: scale(1.04); transition: transform .28s, box-shadow .28s; }
+
+  .small{ color:var(--muted); font-size:0.9rem; }
+  .actions{ display:flex; gap:8px; margin-top:4px; }
+  .actionBtn{ flex:1; padding:10px 12px; border-radius:10px; border:0; cursor:pointer; font-weight:700; letter-spacing:.2px; font-size:0.95rem; }
+  .clear{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.03); }
+  .checkout{ background:linear-gradient(90deg,var(--accent) 0%,var(--accent-2) 100%); color:#071014; }
+
+  .list::-webkit-scrollbar{ width:8px }
+  .list::-webkit-scrollbar-thumb{ background:rgba(255,255,255,0.03); border-radius:8px }
+
+  .hint{ font-size:0.82rem; color:var(--muted) }
+  .badge{ font-size:0.78rem; padding:6px 8px; border-radius:999px; background:rgba(255,255,255,0.02); color:var(--muted); }
+
+  .spark { pointer-events:none; position:fixed; z-index:5; mix-blend-mode:screen; will-change:transform, opacity; }
+  .help-line{ font-size:0.8rem; color:var(--muted); margin-top:8px; }
+</style>
+</head>
+<body>
+  <canvas id="bgCanvas" aria-hidden="true"></canvas>
+  <canvas id="fxCanvas" aria-hidden="true"></canvas>
+
+  <main class="app" id="app" role="application" aria-label="Kalkulator Bobka">
+    <header>
+      <div class="brand" aria-hidden="true">
+        <div class="logo" title="Bobek Customs">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M3 13l1.6-4.2A2 2 0 0 1 6.5 8h11a2 2 0 0 1 1.9 1.3L21 13v4a1 1 0 0 1-1 1h-1a1.5 1.5 0 1 0-3 0H9.1a1.5 1.5 0 1 0-3 0H5a1 1 0 0 1-1-1v-4z" fill="currentColor"/></svg>
+        </div>
+        <div>
+          <h1>Kalkulator Bobek Customs </h1>
+          <p class="lead">Kalkulator dla pracowników Bobka</p>
+        </div>
+      </div>
+
+      <div class="controls-bar" role="region" aria-label="Kontrolki">
+        <div class="search" title="Szukaj usług">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input id="searchInput" placeholder="Szukaj (np. lakier)" aria-label="Szukaj usług" />
+        </div>
+        <button id="fxToggle" class="toggle" title="Wyłącz/powiedz FX">FX: ON</button>
+        <button id="confettiToggle" class="toggle" title="Tryb konfetti przy dodawaniu">Konfetti: OFF</button>
+        <button id="shareBtn" class="toggle" title="Kopiuj link ze stanem">Udostępnij</button>
+      </div>
+    </header>
+
+    <div class="tabs" id="tabs" role="tablist" aria-label="Kategorie usług"></div>
+
+    <section class="grid" aria-labelledby="main-heading">
+      <div>
+        <div role="list" class="list" id="servicesList" tabindex="0" aria-label="Lista usług"></div>
+        <div class="help-line">Shift+klik = +5, klik = +1. Wyszukaj, wybierz kategorię, udostępnij link (zachowuje Twój koszyk).</div>
+      </div>
+
+      <aside class="summary" aria-label="Podsumowanie zamówienia"> 
+      <div id="wybrane-czesci" style="margin-top:24px;padding:20px;background:#000;border:2px solid #00d4ff;border-radius:12px;color:#fff;">
+  <h3 style="margin:0 0 16px;text-align:center;color:#00d4ff;font-size:1.3rem;font-weight:700;">Twoje podsumowanie</h3>
+ <pre id="lista-wybranych" style="background:#111;padding:12px;border-radius:10px;white-space:pre-wrap;font-family:monospace;font-size:0.85rem;color:#fff;min-height:100px;margin:0;line-height:1.35;border:1px solid #00d4ff33;overflow-y:auto;max-height:300px;">
+Nic nie wybrano jeszcze.
+</pre>
+  <button id="kopiuj-liste-btn" style="margin-top:16px;width:100%;padding:14px;background:#00d4ff;color:#000;border:none;border-radius:8px;font-weight:700;font-size:1.1rem;cursor:pointer;">
+    Kopiuj podsumowanie
+  </button>
+</div>
+        <div>
+          <div class="totalLabel">Kwota całkowita</div>
+          <div class="totalValue" id="totalWrap" aria-live="polite">
+            <div id="totalAmount">0</div>
+            <div class="currency">$</div>
+          </div>
+        </div>
+
+        <div class="small">Elementów wybranych: <strong id="itemsCount">0</strong></div>
+
+        <div class="actions" role="toolbar" aria-label="Akcje">
+          <button class="actionBtn clear" id="resetBtn" title="Resetuj wszystko (R)">Wyczyść</button>
+          <button class="actionBtn checkout" id="copyBtn" title="Kopiuj podsumowanie (C)">Kopiuj</button>
+        </div>
+        <div class="hint" id="copiedHint" style="opacity:0;transition:opacity .24s;">Skopiowano do schowka ✨</div>
+      </aside>
+    </section>
+  </main>
+
+<script>
+/*
+  What's new in v2:
+  - Color stays cyan, but added:
+    - Search box (live filter).
+    - FX toggle (on/off) and Confetti toggle for extra dramatic effect.
+    - Share (copy link) with encoded cart state.
+    - Shift+click quick-add (+5).
+    - "Wszystkie" now grouped by category (collapsible as before).
+    - Performance tweaks: lower particle counts, throttled pointer updates, reuse bursts, optimized rAF loops.
+    - Settings persisted separately (FX on/off, confetti).
+  - UX: small hints, keyboard shortcuts unchanged.
+*/
+
+const SERVICES = [
+  {title:"Naprawa silnika", price:15000, cat:"Naprawy"},
+  {title:"Pełna naprawa", price:20000, cat:"Naprawy"},
+  {title:"Mycie", price:15000, cat:"Naprawy"},
+  {title:"Otwarcie zamka", price:80000, cat:"Naprawy"},
+
+  {title:"Kolor główny", price:25000, cat:"Lakierowanie"},
+  {title:"Kolor dodatkowy", price:25000, cat:"Lakierowanie"},
+  {title:"Kolor wnętrza", price:30000, cat:"Lakierowanie"},
+  {title:"Kolor deski", price:30000, cat:"Lakierowanie"},
+  {title:"Kolor perłowy", price:30000, cat:"Lakierowanie"},
+
+  {title:"Xenony", price:20000, cat:"Światła"},
+  {title:"Układ lewa strona (neon)", price:25000, cat:"Neony"},
+  {title:"Układ prawa strona (neon)", price:25000, cat:"Neony"},
+  {title:"Układ tył (neon)", price:25000, cat:"Neony"},
+  {title:"Układ przód (neon)", price:25000, cat:"Neony"},
+  {title:"Full pakiet neonów", price:100000, cat:"Neony"},
+  {title:"Kolor neonów", price:25000, cat:"Neony"},
+
+  {title:"Zmiana felgi", price:30000, cat:"Opony"},
+  {title:"Zmiana koloru felgi", price:30000, cat:"Opony"},
+  {title:"Zmiana dymy spod opon", price:30000, cat:"Opony"},
+  {title:"Opony niestandardowe (napisy)", price:30000, cat:"Opony"},
+
+  {title:"Zmiana koloru szyb", price:30000, cat:"Szyby"},
+
+  {title:"Klapa", price:40000, cat:"Karoseria"},
+  {title:"Progi", price:40000, cat:"Karoseria"},
+  {title:"Wydech", price:40000, cat:"Karoseria"},
+  {title:"Front", price:40000, cat:"Karoseria"},
+  {title:"Maska", price:40000, cat:"Karoseria"},
+  {title:"Błotniki", price:40000, cat:"Karoseria"},
+  {title:"Dach", price:40000, cat:"Karoseria"},
+  {title:"Nadwozie", price:40000, cat:"Karoseria"},
+  {title:"Wnętrze", price:40000, cat:"Karoseria"},
+  {title:"Naklejki", price:40000, cat:"Karoseria"},
+  {title:"Zderzaki", price:40000, cat:"Karoseria"},
+  {title:"Extrasy / Każda część", price:60000, cat:"Karoseria"},
+
+  {title:"Zmiana klaksonu", price:30000, cat:"Inne"},
+  {title:"Pneumatyka", price:100000, cat:"Inne"},
+  {title:"Zmiana koloru tablic", price:30000, cat:"Inne"},
+  {title:"Zmiana ramki tablicy", price:25000, cat:"Inne"}
+];
+  
+const CATS = ["Wszystkie", ...Array.from(new Set(SERVICES.map(s=>s.cat)))];
+
+const STORAGE_KEY = 'bennys_cyan_v2_state';
+const SETTINGS_KEY = 'bennys_cyan_v2_settings';
+let state = {
+  counts: new Array(SERVICES.length).fill(0),
+  total: 0,
+  selectedCat: "Wszystkie",
+  collapsed: {}
+};
+let settings = {
+  fx: true,
+  confetti: false,
+  particleIntensity: 1 // 0.5 .. 2
+};
+
+function fmt(n){ return n.toLocaleString('pl-PL'); }
+
+function saveState(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){} }
+function loadState(){ try{ const raw = localStorage.getItem(STORAGE_KEY); if(raw){ const s = JSON.parse(raw); if(Array.isArray(s.counts) && typeof s.total === 'number'){ const arr = new Array(SERVICES.length).fill(0); for(let i=0;i<Math.min(arr.length, s.counts.length); i++) arr[i] = Number(s.counts[i])||0; state.counts = arr; state.total = Number(s.total)||0; if(s.selectedCat) state.selectedCat = s.selectedCat; if(s.collapsed) state.collapsed = s.collapsed; } } }catch(e){} }
+function saveSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){} }
+function loadSettings(){ try{ const raw = localStorage.getItem(SETTINGS_KEY); if(raw){ const s = JSON.parse(raw); if(typeof s.fx === 'boolean') settings.fx = s.fx; if(typeof s.confetti === 'boolean') settings.confetti = s.confetti; if(typeof s.particleIntensity === 'number') settings.particleIntensity = s.particleIntensity; } }catch(e){} }
+
+/* DOM refs */
+const listEl = document.getElementById('servicesList');
+const tabsEl = document.getElementById('tabs');
+const totalEl = document.getElementById('totalAmount');
+const totalWrap = document.getElementById('totalWrap');
+const itemsCountEl = document.getElementById('itemsCount');
+const copiedHint = document.getElementById('copiedHint');
+const fxToggle = document.getElementById('fxToggle');
+const confettiToggle = document.getElementById('confettiToggle');
+const searchInput = document.getElementById('searchInput');
+const shareBtn = document.getElementById('shareBtn');
+
+loadState();
+loadSettings();
+
+/* UI: Tabs */
+function getCategoryCount(cat){
+  if(cat === 'Wszystkie') return state.counts.reduce((a,b)=>a+b, 0);
+  return SERVICES.reduce((acc, s, i) => acc + ((s.cat === cat) ? state.counts[i] : 0), 0);
+}
+
+function createTabs(){
+  tabsEl.innerHTML = '';
+  CATS.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (state.selectedCat === cat ? ' active' : '');
+    btn.setAttribute('role','tab');
+    btn.setAttribute('aria-selected', state.selectedCat === cat ? 'true' : 'false');
+    btn.innerHTML = `<span>${cat}</span>`;
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+    badge.style.marginLeft = '8px';
+    badge.textContent = getCategoryCount(cat);
+    btn.appendChild(badge);
+    btn.addEventListener('click', ()=> {
+      state.selectedCat = cat;
+      saveState();
+      createTabs();
+      renderListAnimated();
+    });
+    tabsEl.appendChild(btn);
+  });
+}
+createTabs();
+
+/* Filtering (search) */
+let searchTerm = '';
+searchInput.addEventListener('input', e => {
+  searchTerm = e.target.value.trim().toLowerCase();
+  renderListAnimated();
+});
+
+/* Create DOM elements (grouped or single) */
+function createServiceElement(idx, s){
+  const wrapper = document.createElement('div');
+  wrapper.className = 'service';
+  wrapper.setAttribute('role','listitem');
+  wrapper.dataset.cat = s.cat;
+  wrapper.dataset.index = idx;
+  wrapper.innerHTML = `
+    <div class="meta" title="${s.title}">
+      <div class="title">${s.title}</div>
+      <div class="price">${fmt(s.price)} $ • <span style="color:var(--muted);font-weight:600">${s.cat}</span></div>
+    </div>
+    <div class="controls">
+      <button class="btn remove" data-action="dec" data-index="${idx}" aria-label="Usuń jeden">−</button>
+      <div class="count" id="count-${idx}" aria-live="polite">0</div>
+      <button class="btn add" data-action="inc" data-index="${idx}" aria-label="Dodaj jeden">+</button>
+    </div>
+  `;
+  // reveal animation prep
+  wrapper.style.opacity = 0;
+  wrapper.style.transform = 'translateY(6px)';
+  wrapper.style.transition = 'opacity .26s cubic-bezier(.2,.9,.2,1), transform .26s cubic-bezier(.2,.9,.2,1)';
+  return wrapper;
+}
+
+function createCategoryBlock(cat){
+  const block = document.createElement('div');
+  block.className = 'cat-block';
+  block.dataset.cat = cat;
+
+  const header = document.createElement('div');
+  header.className = 'cat-header';
+  header.tabIndex = 0;
+
+  const title = document.createElement('div');
+  title.className = 'cat-title';
+  title.innerHTML = `<strong>${cat}</strong> <span class="badge">${getCategoryCount(cat)}</span>`;
+
+  const controls = document.createElement('div');
+  controls.className = 'cat-controls';
+  const toggle = document.createElement('button');
+  toggle.className = 'cat-toggle';
+  toggle.textContent = state.collapsed[cat] ? 'Pokaż' : 'Zwiń';
+  controls.appendChild(toggle);
+
+  header.appendChild(title);
+  header.appendChild(controls);
+  block.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'cat-list';
+  list.style.display = state.collapsed[cat] ? 'none' : 'block';
+  block.appendChild(list);
+
+  const toggleHandler = () => {
+    state.collapsed[cat] = !state.collapsed[cat];
+    toggle.textContent = state.collapsed[cat] ? 'Pokaż' : 'Zwiń';
+    if(state.collapsed[cat]){
+      list.style.opacity = 0;
+      setTimeout(()=> list.style.display = 'none', 200);
+    } else {
+      list.style.display = 'block';
+      requestAnimationFrame(()=> list.style.opacity = 1);
+    }
+    saveState();
+    createTabs();
+  };
+
+  header.addEventListener('click', toggleHandler);
+  header.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleHandler(); } });
+
+  return { block, list };
+}
+
+/* Render list with grouping (Wszystkie) or single category; apply search filter */
+function renderList(){
+  listEl.innerHTML = '';
+  const q = searchTerm;
+  if(state.selectedCat === 'Wszystkie'){
+    const cats = CATS.slice(1);
+    cats.forEach(cat => {
+      // Filter category items by search
+      const items = SERVICES.map((s, idx) => ({s, idx})).filter(({s}) => s.cat === cat && (!q || s.title.toLowerCase().includes(q)));
+      if(items.length === 0 && !state.collapsed[cat]) {
+        // still show header with zero if collapsed is false? We'll skip empty categories by default for clarity
+      }
+      if(items.length > 0){
+        const { block, list } = createCategoryBlock(cat);
+        items.forEach(({s, idx}) => {
+          const el = createServiceElement(idx, s);
+          list.appendChild(el);
+        });
+        listEl.appendChild(block);
+      }
+    });
+  } else {
+    SERVICES.forEach((s, idx) => {
+      if(state.selectedCat !== 'Wszystkie' && s.cat !== state.selectedCat) return;
+      if(q && !s.title.toLowerCase().includes(q)) return;
+      const el = createServiceElement(idx, s);
+      listEl.appendChild(el);
+    });
+  }
+  attachListEvents();
+
+  // reveal with stagger (very short)
+  const nodes = Array.from(listEl.querySelectorAll('.service'));
+  nodes.forEach((node, i) => {
+    setTimeout(()=>{ node.style.opacity = 1; node.style.transform = 'translateY(0)'; }, i * 14);
+  });
+
+  updateUI();
+}
+
+function renderListAnimated(){
+  // subtle fade for variety
+  listEl.style.opacity = 0;
+  listEl.style.transform = 'translateY(6px)';
+  setTimeout(()=> {
+    renderList();
+    listEl.style.transition = 'opacity .26s ease, transform .26s ease';
+    listEl.style.opacity = 1;
+    listEl.style.transform = 'translateY(0)';
+    setTimeout(()=> { listEl.style.transition = ''; }, 320);
+  }, 80);
+}
+
+/* Events: attach to buttons */
+function attachListEvents(){
+  listEl.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.onclick = onServiceClick;
+    btn.onkeydown = (e) => { if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); btn.click(); } };
+  });
+}
+
+/* Core logic: changeCount (Shift+click for +5), FX origin */
+function changeCount(index, delta, originXY){
+  const price = SERVICES[index].price;
+  const newCount = Math.max(0, state.counts[index] + delta);
+  const diff = (newCount - state.counts[index]) * price;
+  if(diff === 0) return;
+  state.counts[index] = newCount;
+  state.total = Math.max(0, state.total + diff);
+  animateCount(index);
+  animateTotal();
+  createTabs();
+  persistAndRender();
+  if(settings.fx && originXY && delta > 0){
+    if(settings.confetti){
+      triggerConfetti(originXY.x, originXY.y);
+    } else {
+      triggerBurst(originXY.x, originXY.y);
+    }
+  }
+  if(Math.abs(diff) >= 50000) flashTotalGlow();
+}
+
+/* persist & update UI */
+function persistAndRender(){ saveState(); updateUI(); }
+function updateUI(){
+  state.counts.forEach((c, i) => {
+    const el = document.getElementById('count-' + i);
+    if(el) el.textContent = c;
+  });
+  totalEl.textContent = fmt(state.total);
+  itemsCountEl.textContent = state.counts.reduce((a,b)=>a+b, 0);
+
+  tabsEl.querySelectorAll('.tab').forEach((t, idx) => {
+    const cat = CATS[idx];
+    const b = t.querySelector('.badge');
+    if(b) b.textContent = getCategoryCount(cat);
+  });
+
+  // TO JEST KLUCZOWE – odświeża tabelkę przy każdej zmianie
+  aktualizujListeWybranych();
+}
+
+/* Animations */
+function animateCount(index){
+  const el = document.getElementById('count-'+index);
+  if(!el) return;
+  el.classList.remove('pulse');
+  void el.offsetWidth;
+  el.classList.add('pulse');
+}
+
+let animFrame = null;
+function animateTotal(){
+  cancelAnimationFrame(animFrame);
+  const current = Number(String(totalEl.textContent).replace(/\s/g,'')) || 0;
+  const target = state.total;
+  const duration = 420;
+  const start = performance.now();
+  function tick(now){
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const val = Math.round(current + (target - current) * eased);
+    totalEl.textContent = fmt(val);
+    if(t < 1) animFrame = requestAnimationFrame(tick);
+    else totalEl.textContent = fmt(target);
+  }
+  animFrame = requestAnimationFrame(tick);
+  totalWrap.classList.add('pulse');
+  setTimeout(()=> totalWrap.classList.remove('pulse'), 380);
+}
+
+function flashTotalGlow(){
+  totalWrap.classList.add('glow');
+  setTimeout(()=> totalWrap.classList.remove('glow'), 850);
+}
+
+/* Event handler for add/remove, supports Shift for +5 */
+function onServiceClick(e){
+  const idx = Number(e.currentTarget.dataset.index);
+  const action = e.currentTarget.dataset.action;
+  // compute center for fx
+  const rect = e.currentTarget.getBoundingClientRect();
+  const origin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  const isShift = e.shiftKey || e instanceof KeyboardEvent && e.shiftKey;
+  const amount = isShift && action === 'inc' ? 5 : 1;
+  if(action === 'inc') changeCount(idx, amount, origin);
+  else if(action === 'dec') changeCount(idx, -1, origin);
+}
+
+/* Reset, copy, share */
+document.getElementById('resetBtn').addEventListener('click', ()=> {
+  state.counts = new Array(SERVICES.length).fill(0);
+  state.total = 0;
+  persistAndRender();
+  createTabs();
+  renderListAnimated();
+});
+
+document.getElementById('copyBtn').addEventListener('click', async () => {
+  const kwota = document.getElementById('totalAmount').textContent.trim() + ' $';
+  await navigator.clipboard.writeText(kwota);
+
+  copiedHint.textContent = 'Skopiowano kwotę: ' + kwota;
+  copiedHint.style.opacity = 1;
+  setTimeout(() => copiedHint.style.opacity = 0, 1200);
+});
+
+/* Share: encode state in URL (base64) and copy */
+shareBtn.addEventListener('click', async () => {
+  const payload = { counts: state.counts, total: state.total };
+  const encoded = btoa(JSON.stringify(payload));
+  const url = new URL(location.href);
+  url.searchParams.set('state', encoded);
+  try {
+    await navigator.clipboard.writeText(url.toString());
+    shareBtn.textContent = 'Skopiowano!';
+    setTimeout(()=> shareBtn.textContent = 'Udostępnij', 1200);
+  } catch(e){
+    shareBtn.textContent = 'Błąd';
+    setTimeout(()=> shareBtn.textContent = 'Udostępnij', 1200);
+  }
+});
+
+/* Load state from URL if provided (merge) */
+(function loadFromURL(){
+  try {
+    const params = new URLSearchParams(location.search);
+    const encoded = params.get('state');
+    if(encoded){
+      const raw = atob(encoded);
+      const obj = JSON.parse(raw);
+      if(Array.isArray(obj.counts)){
+        // merge into current state (preserve length)
+        for(let i=0;i<Math.min(SERVICES.length, obj.counts.length); i++){
+          state.counts[i] = Number(obj.counts[i]) || 0;
+        }
+        state.total = Number(obj.total) || state.counts.reduce((sum, c, i) => sum + (c * SERVICES[i].price), 0);
+        saveState();
+      }
+    }
+  } catch(e){}
+})();
+
+/* Shortcuts */
+document.addEventListener('keydown', (e) => {
+  if(document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+  if(e.key.toLowerCase() === 'r'){ e.preventDefault(); document.getElementById('resetBtn').click(); }
+  if(e.key.toLowerCase() === 'c'){ e.preventDefault(); document.getElementById('copyBtn').click(); }
+});
+
+/* FX toggles */
+function updateFxUi(){
+  fxToggle.textContent = `FX: ${settings.fx ? 'ON' : 'OFF'}`;
+  confettiToggle.textContent = `Konfetti: ${settings.confetti ? 'ON' : 'OFF'}`;
+}
+fxToggle.addEventListener('click', ()=> { settings.fx = !settings.fx; saveSettings(); updateFxUi(); });
+confettiToggle.addEventListener('click', ()=> { settings.confetti = !settings.confetti; saveSettings(); updateFxUi(); });
+updateFxUi();
+
+/* Init: render */
+(function init(){
+  renderList();
+  createTabs();
+  updateUI();
+  saveState();
+})();
+
+/* ----------------------
+   Canvas Background (optimized)
+   - fewer particles, delta time movement, throttled pointer updates
+   ---------------------- */
+(() => {
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d', {alpha:true});
+  let w = canvas.width = innerWidth;
+  let h = canvas.height = innerHeight;
+
+  const particleBase = Math.max(14, Math.min(60, Math.floor((w*h)/160000)));
+  const particles = [];
+  for(let i=0;i<particleBase;i++){
+    particles.push({
+      x: Math.random()*w,
+      y: Math.random()*h,
+      vx: (Math.random()-0.5)*0.3,
+      vy: (Math.random()-0.5)*0.3,
+      r: Math.random()*2 + 1,
+      hue: 180 + Math.random()*20 // cyan-ish
+    });
+  }
+
+  let mouse = {x:w/2, y:h/2, active:false};
+  let pointerChanged = false;
+
+  window.addEventListener('resize', () => {
+    clearTimeout(window._bgResize);
+    window._bgResize = setTimeout(()=> { w=canvas.width=innerWidth; h=canvas.height=innerHeight; }, 120);
+  });
+  window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; pointerChanged = true; }, {passive:true});
+  window.addEventListener('mouseleave', ()=> mouse.active = false);
+
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(32, now - last) / 16.66;
+    last = now;
+    ctx.clearRect(0,0,w,h);
+    const g = ctx.createLinearGradient(0,0,w,h);
+    g.addColorStop(0, 'rgba(0,212,255,0.01)');
+    g.addColorStop(1, 'rgba(0,153,204,0.01)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+
+    for(const p of particles){
+      if(mouse.active && pointerChanged){
+        const dx = mouse.x - p.x;
+        const dy = mouse.y - p.y;
+        const dist2 = Math.max(80, dx*dx + dy*dy);
+        const f = (60 / dist2) * (0.6 + 0.8 * settings.particleIntensity);
+        p.vx += dx * f * 0.0004 * dt;
+        p.vy += dy * f * 0.0004 * dt;
+      }
+      p.vx += (Math.random()-0.5) * 0.018 * dt;
+      p.vy += (Math.random()-0.5) * 0.018 * dt;
+      p.vx *= 0.96;
+      p.vy *= 0.96;
+      p.x += p.vx;
+      p.y += p.vy;
+      if(p.x < -10) p.x = w + 10;
+      if(p.x > w + 10) p.x = -10;
+      if(p.y < -10) p.y = h + 10;
+      if(p.y > h + 10) p.y = -10;
+
+      ctx.beginPath();
+      const md = mouse.active ? Math.hypot(mouse.x - p.x, mouse.y - p.y) : 9999;
+      const alpha = Math.max(0.06, 0.7 - (md / 700));
+      ctx.fillStyle = `hsla(${(p.hue%360).toFixed(0)}, 95%, 58%, ${alpha*0.12})`;
+      ctx.shadowBlur = p.r * 6;
+      ctx.shadowColor = `hsla(${(p.hue%360).toFixed(0)},95%,58%,${alpha*0.22})`;
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = `rgba(255,255,255,${Math.min(0.05, p.r/14)})`;
+      ctx.lineWidth = 0.6;
+      ctx.arc(p.x, p.y, p.r + 3.2, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    pointerChanged = false;
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+
+/* ----------------------
+   FX Canvas: bursts + confetti
+   - burst used for normal add, confetti for confetti mode
+   - bursts pooled to avoid allocations
+   ---------------------- */
+(() => {
+  const canvas = document.getElementById('fxCanvas');
+  const ctx = canvas.getContext('2d', {alpha:true});
+  let w = canvas.width = innerWidth;
+  let h = canvas.height = innerHeight;
+
+  window.addEventListener('resize', () => {
+    clearTimeout(window._fxResize);
+    window._fxResize = setTimeout(()=> { w = canvas.width = innerWidth; h = canvas.height = innerHeight; }, 120);
+  });
+
+  const bursts = [];
+  const pool = [];
+
+  function createBurst(x, y, count = 20){
+    const now = performance.now();
+    const items = [];
+    for(let i=0;i<count;i++){
+      items.push({
+        angle: Math.random()*Math.PI*2,
+        speed: (Math.random()*3 + 2) * (0.8 + Math.random()*settings.particleIntensity),
+        r: Math.random()*3 + 1,
+        hue: 180 + Math.random()*40,
+        life: 480 + Math.random()*440,
+      });
+    }
+    bursts.push({x, y, t: now, particles: items});
+  }
+
+  function triggerBurst(x, y){
+    if(!settings.fx) return;
+    createBurst(x, y, 18 + Math.floor(Math.random()*10));
+    // small DOM glow
+    const s = document.createElement('div');
+    s.className = 'spark';
+    s.style.left = (x - 60) + 'px';
+    s.style.top = (y - 60) + 'px';
+    s.style.width = '120px';
+    s.style.height = '120px';
+    s.style.borderRadius = '60px';
+    s.style.boxShadow = `0 0 44px 10px rgba(0,212,255,0.18)`;
+    document.body.appendChild(s);
+    s.animate([{ opacity:1, transform:'scale(.9)' }, { opacity:0, transform:'scale(1.25)' }], { duration:520, easing:'cubic-bezier(.2,.9,.2,1)' });
+    setTimeout(()=> s.remove(), 620);
+  }
+
+  function triggerConfetti(x, y){
+    if(!settings.fx) return;
+    // a larger burst with rectangular confetti pieces
+    const now = performance.now();
+    const pieces = [];
+    const count = 36 + Math.floor(Math.random()*18);
+    for(let i=0;i<count;i++){
+      pieces.push({
+        angle: (Math.PI/2) + (Math.random()-0.5)*Math.PI*0.8,
+        speed: 2 + Math.random()*5,
+        w: 4 + Math.random()*8,
+        h: 8 + Math.random()*12,
+        hue: 180 + Math.random()*40,
+        life: 900 + Math.random()*600,
+        rot: Math.random()*Math.PI*2,
+        rotSpeed: (Math.random()-0.5)*0.45
+      });
+    }
+    bursts.push({x, y, t: now, confetti: true, particles: pieces});
+    // DOM celebration
+    const s = document.createElement('div');
+    s.className = 'spark';
+    s.style.left = (x - 90) + 'px';
+    s.style.top = (y - 90) + 'px';
+    s.style.width = '180px';
+    s.style.height = '180px';
+    s.style.borderRadius = '90px';
+    s.style.boxShadow = `0 0 70px 18px rgba(0,212,255,0.14)`;
+    document.body.appendChild(s);
+    s.animate([{ opacity:1, transform:'scale(.8)' }, { opacity:0, transform:'scale(1.4)' }], { duration:900, easing:'cubic-bezier(.2,.9,.2,1)' });
+    setTimeout(()=> s.remove(), 1000);
+  }
+
+  window.triggerBurst = triggerBurst;
+  window.triggerConfetti = triggerConfetti;
+
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    const now = performance.now();
+    for(let bi = bursts.length - 1; bi >= 0; bi--){
+      const b = bursts[bi];
+      const alive = b.particles.filter(p => (now - b.t) < p.life);
+      if(alive.length === 0){ bursts.splice(bi, 1); continue; }
+      for(const p of alive){
+        const age = now - b.t;
+        const t = Math.min(1, age / p.life);
+        if(b.confetti){
+          // confetti piece
+          const s = p.speed * (1 + 0.6 * t);
+          const px = b.x + Math.cos(p.angle) * s * (age/120);
+          const py = b.y + Math.sin(p.angle) * s * (age/120) + (0.5 * age);
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate(p.rot + p.rotSpeed * (age/50));
+          ctx.fillStyle = `hsla(${(p.hue%360).toFixed(0)}, 90%, 55%, ${1 - t})`;
+          ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+          ctx.restore();
+        } else {
+          // normal particle
+          const s = p.speed * (1 + 0.8 * t);
+          const dx = Math.cos(p.angle) * s * (age/80);
+          const dy = Math.sin(p.angle) * s * (age/80) + (Math.sin(age/120 + p.angle)*1.2);
+          const px = b.x + dx;
+          const py = b.y + dy;
+          const alpha = Math.max(0, 1 - t);
+          ctx.beginPath();
+          ctx.fillStyle = `hsla(${(p.hue%360).toFixed(0)}, 95%, 58%, ${alpha})`;
+          ctx.shadowBlur = p.r * 10 * alpha;
+          ctx.shadowColor = `hsla(${(p.hue%360).toFixed(0)},95%,58%, ${alpha})`;
+          ctx.arc(px, py, p.r * (1 + t*0.8), 0, Math.PI*2);
+          ctx.fill();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+})();
+
+/* Final notes: ensure initial render */
+renderList();
+createTabs();
+updateUI(); 
+saveSettings();
+saveState();
+
+function aktualizujListeWybranych() {
+  const linie = [];
+  let suma = 0;
+  SERVICES.forEach((u, i) => {
+    const il = state.counts[i] || 0;
+    if (il < 1) return;
+    const kw = il * u.price;
+    suma += kw;
+    linie.push(`${u.title} × ${il}`);
+  });
+  const el = document.getElementById('lista-wybranych');
+  if (el) {
+    el.textContent = linie.length ? linie.join('\n') + `\n\nSuma: ${fmt(suma)}$` : 'Nic nie wybrano jeszcze.';
+  }
+}
+
+const stare = updateUI;
+updateUI = function() {
+  stare();
+  aktualizujListeWybranych();
+};
+
+aktualizujListeWybranych();
+
+const guzik = document.getElementById('kopiuj-liste-btn');
+const hint = document.getElementById('copiedHint');
+
+if (guzik && hint) {
+  guzik.addEventListener('click', () => {
+    const tekst = document.getElementById('lista-wybranych')?.textContent?.trim() || '';
+    const pusto = !tekst || tekst.includes('Nic nie');
+
+    if (pusto) {
+      hint.textContent = 'Tabela pusta – nic nie skopiowano';
+    } else {
+      navigator.clipboard.writeText(tekst);
+      hint.textContent = 'Skopiowano do schowka ✨';
+    }
+
+    hint.style.opacity = 1;
+    setTimeout(() => hint.style.opacity = 0, 2000);
+
+    guzik.style.transition = 'all 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+    guzik.style.transform = 'translateY(6px) scale(0.94)';
+    guzik.style.boxShadow = 'inset 0 6px 14px rgba(0,0,0,0.6)';
+    guzik.style.background = '#0099cc';
+
+    setTimeout(() => {
+      guzik.style.transform = 'translateY(-5px) scale(1.05)';
+      guzik.style.boxShadow = '0 5px 12px rgba(0,0,0,0.4)';
+    }, 160);
+
+    setTimeout(() => {
+      guzik.style.transform = 'translateY(0) scale(1)';
+      guzik.style.boxShadow = 'none';
+      guzik.style.background = '#00d4ff';
+    }, 450);
+  });
+}
+
+</script>
+</body>
+</html>
